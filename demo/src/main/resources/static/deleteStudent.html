@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Student</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 50px;
+        }
+        table {
+            margin-top: 20px;
+            border-collapse: collapse;
+            width: 80%;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .delete-btn {
+            color: red;
+            cursor: pointer;
+        }
+        #searchId {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Delete Student</h1>
+
+    <input type="text" id="searchId" placeholder="Enter Student ID to search">
+    <button onclick="fetchStudents()">Search</button>
+
+    <table id="studentTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Student rows will be populated here -->
+        </tbody>
+    </table>
+
+    <script>
+        async function fetchStudents() {
+            const searchId = document.getElementById('searchId').value.trim();
+            const response = await fetch('/api/students');
+            const students = await response.json();
+
+            const studentTableBody = document.getElementById('studentTable').getElementsByTagName('tbody')[0];
+            studentTableBody.innerHTML = ''; // Clear existing rows
+
+            students
+                .filter(student => !searchId || student.id.includes(searchId)) // Filter by searchId
+                .forEach(student => {
+                    const row = studentTableBody.insertRow();
+                    row.insertCell(0).innerText = student.id;
+                    row.insertCell(1).innerText = student.name;
+                    row.insertCell(2).innerText = student.age;
+                    const deleteCell = row.insertCell(3);
+                    deleteCell.innerHTML = `<span class="delete-btn" onclick="deleteStudent('${student.id}')">Delete</span>`;
+                });
+        }
+
+        async function deleteStudent(studentId) {
+            const response = await fetch(`/api/students/${studentId}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                alert("Student deleted successfully!");
+                fetchStudents(); // Refresh the student list
+            } else {
+                alert("Failed to delete student. Please try again.");
+            }
+        }
+    </script>
+
+</body>
+</html>

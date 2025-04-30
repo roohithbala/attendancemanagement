@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Attendance</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 50px;
+        }
+        h1, h3 {
+            color: #333;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        label {
+            font-weight: bold;
+        }
+        select, input[type="date"], button {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Add Attendance</h1>
+    <form id="addAttendanceForm">
+        <label for="studentSelect">Select Student:</label>
+        <select id="studentSelect" required>
+            <option value="" disabled selected>Select a Student</option>
+        </select>
+
+        <label for="attendanceDate">Date:</label>
+        <input type="date" id="attendanceDate" required />
+
+        <h3>Mark Attendance for Each Period</h3>
+        <div id="periodsContainer">
+            <!-- Dropdowns for each period will be dynamically generated here -->
+        </div>
+
+        <button type="submit">Add Attendance</button>
+    </form>
+
+    <script>
+        // Fetch students and populate the dropdown
+        async function loadStudents() {
+            try {
+                const response = await fetch('/api/students');
+                const students = await response.json();
+
+                const studentSelect = document.getElementById('studentSelect');
+                students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student.id;
+                    option.textContent = `${student.name} (ID: ${student.id})`;
+                    studentSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load students:', error);
+                alert('Could not load students. Please try again later.');
+            }
+        }
+
+        // Generate dropdowns for marking attendance for each period
+        function generatePeriodDropdowns() {
+            const periodsContainer = document.getElementById('periodsContainer');
+            periodsContainer.innerHTML = ''; // Clear any existing dropdowns
+
+            for (let i = 1; i <= 8; i++) {
+                const label = document.createElement('label');
+                label.textContent = `Period ${i}:`;
+
+                const select = document.createElement('select');
+                select.required = true;
+                select.id = `period${i}`;
+                
+                const optionPresent = document.createElement('option');
+                optionPresent.value = 'true';
+                optionPresent.textContent = 'Present';
+                
+                const optionAbsent = document.createElement('option');
+                optionAbsent.value = 'false';
+                optionAbsent.textContent = 'Absent';
+                
+                select.appendChild(optionPresent);
+                select.appendChild(optionAbsent);
+
+                periodsContainer.appendChild(label);
+                periodsContainer.appendChild(select);
+            }
+        }
+
+        // Load students on page load and generate period dropdowns
+        loadStudents();
+        generatePeriodDropdowns();
+
+        // Handle form submission
+        document.getElementById('addAttendanceForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const studentId = document.getElementById('studentSelect').value;
+            const attendanceDate = document.getElementById('attendanceDate').value;
+
+            // Gather attendance status for each period
+            const periods = [];
+            for (let i = 1; i <= 8; i++) {
+                const periodStatus = document.getElementById(`period${i}`).value === 'true';
+                periods.push(periodStatus);
+            }
+
+            try {
+                const response = await fetch('/api/attendance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ studentId, date: attendanceDate, periods })
+                });
+
+                if (response.ok) {
+                    alert('Attendance added successfully!');
+                    document.getElementById('addAttendanceForm').reset();
+                    generatePeriodDropdowns(); // Reset dropdowns after submission
+                } else {
+                    throw new Error('Failed to add attendance');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Failed to add attendance. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

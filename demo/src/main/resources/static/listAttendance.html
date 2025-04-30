@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List Attendance</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+        button {
+            padding: 5px 10px;
+            margin: 0 5px;
+            cursor: pointer;
+            border: none;
+            color: white;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+
+        button.modify {
+            background-color: #008CBA;
+        }
+
+        button.modify:hover {
+            background-color: #007B9E;
+            transform: scale(1.05);
+        }
+
+        button.delete {
+            background-color: #f44336;
+        }
+
+        button.delete:hover {
+            background-color: #d32f2f;
+            transform: scale(1.05);
+        }
+
+        #modifyModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            width: 80%;
+            max-width: 500px;
+        }
+
+        #modifyModal h2 {
+            margin-top: 0;
+        }
+
+        #modifyForm label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        #modifyPeriodsContainer label {
+            display: inline-block;
+            width: 100px;
+            margin-top: 5px;
+        }
+
+        #modifyPeriodsContainer select {
+            margin-left: 5px;
+        }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 500;
+        }
+    </style>
+</head>
+<body>
+    <h1>List of Attendance Records</h1>
+    <table id="attendanceTable">
+        <tr>
+            <th>ID</th>
+            <th>Student ID</th>
+            <th>Date</th>
+            <th>Periods</th>
+            <th>Actions</th>
+        </tr>
+    </table>
+
+    <!-- Modal for modifying attendance -->
+    <div id="overlay" onclick="closeModal()"></div>
+    <div id="modifyModal">
+        <h2>Modify Attendance</h2>
+        <form id="modifyForm">
+            <input type="hidden" id="modifyId" />
+            <input type="hidden" id="modifyStudentId" />
+            <label for="modifyDate">Date:</label>
+            <input type="date" id="modifyDate" required />
+            <h3>Mark Attendance for Each Period</h3>
+            <div id="modifyPeriodsContainer"></div>
+            <button type="submit">Save Changes</button>
+            <button type="button" onclick="closeModal()">Cancel</button>
+        </form>
+    </div>
+
+    <script>
+        async function fetchAttendance() {
+            const response = await fetch('/api/attendance');
+            const attendanceRecords = await response.json();
+
+            const attendanceTable = document.getElementById('attendanceTable');
+            attendanceTable.innerHTML = `<tr>
+                <th>ID</th>
+                <th>Student ID</th>
+                <th>Date</th>
+                <th>Periods</th>
+                <th>Actions</th>
+            </tr>`; // Clear previous rows and add header again
+
+            attendanceRecords.forEach(record => {
+                const row = attendanceTable.insertRow();
+                row.insertCell(0).innerText = record.id;
+                row.insertCell(1).innerText = record.studentId;
+                row.insertCell(2).innerText = record.date;
+                row.insertCell(3).innerText = record.periods.map(p => p ? 'Present' : 'Absent').join(', ');
+
+                // Add actions: Modify and Delete
+                const actionsCell = row.insertCell(4);
+                const deleteButton = document.createElement('button');
+                deleteButton.innerText = 'Delete';
+                deleteButton.classList.add('delete');
+                deleteButton.onclick = () => deleteAttendance(record.id);
+                actionsCell.appendChild(deleteButton);
+
+                const modifyButton = document.createElement('button');
+                modifyButton.innerText = 'Modify';
+                modifyButton.classList.add('modify');
+                modifyButton.onclick = () => openModifyModal(record);
+                actionsCell.appendChild(modifyButton);
+            });
+        }
+
+        // Delete attendance record
+        async function deleteAttendance(id) {
+            const response = await fetch(`/api/attendance/${id}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                alert('Attendance record deleted successfully');
+                fetchAttendance(); // Refresh table after deletion
+            } else {
+                alert('Failed to delete attendance record');
+            }
+        }
+
+        // Open modal for modifying attendance
+        function openModifyModal(record) {
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('modifyModal').style.display = 'block';
+            document.getElementById('modifyId').value = record.id;
+            document.getElementById('modifyStudentId').value = record.studentId; // Set student ID
+            document.getElementById('modifyDate').value = record.date;
+
+            // Populate attendance period dropdowns
+            const modifyPeriodsContainer = document.getElementById('modifyPeriodsContainer');
+            modifyPeriodsContainer.innerHTML = ''; // Clear previous dropdowns
+            record.periods.forEach((period, index) => {
+                const label = document.createElement('label');
+                label.textContent = `Period ${index + 1}:`;
+
+                const select = document.createElement('select');
+                select.id = `modifyPeriod${index + 1}`;
+                
+                const optionPresent = document.createElement('option');
+                optionPresent.value = 'true';
+                optionPresent.textContent = 'Present';
+                
+                const optionAbsent = document.createElement('option');
+                optionAbsent.value = 'false';
+                optionAbsent.textContent = 'Absent';
+                
+                select.appendChild(optionPresent);
+                select.appendChild(optionAbsent);
+                select.value = period ? 'true' : 'false'; // Set current value
+
+                modifyPeriodsContainer.appendChild(label);
+                modifyPeriodsContainer.appendChild(select);
+            });
+        }
+
+        // Close modify modal
+        function closeModal() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('modifyModal').style.display = 'none';
+        }
+
+        // Handle modify form submission
+        document.getElementById('modifyForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const id = document.getElementById('modifyId').value;
+            const studentId = document.getElementById('modifyStudentId').value; // Get student ID
+            const date = document.getElementById('modifyDate').value;
+
+            // Collect updated periods
+            const periods = [];
+            for (let i = 1; i <= 8; i++) {
+                const periodStatus = document.getElementById(`modifyPeriod${i}`).value === 'true';
+                periods.push(periodStatus);
+            }
+
+            // Send update request
+            const response = await fetch(`/api/attendance/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ studentId, date, periods }) // Include student ID in update
+            });
+
+            if (response.ok) {
+                alert('Attendance record updated successfully');
+                closeModal();
+                fetchAttendance(); // Refresh the table after update
+            } else {
+                alert('Failed to update attendance record');
+            }
+        });
+
+        // Fetch attendance records on page load
+        fetchAttendance();
+    </script>
+</body>
+</html>

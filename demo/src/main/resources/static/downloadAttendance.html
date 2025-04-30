@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Attendance Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 50px;
+        }
+        h1 {
+            color: #333;
+        }
+        input, button {
+            margin: 10px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            color: #fff;
+            background-color: #007BFF;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Download Attendance Report</h1>
+    <p>Enter the Student ID to download the attendance report as CSV.</p>
+    <input type="text" id="studentId" placeholder="Enter Student ID" required />
+    <button onclick="downloadAttendanceReport()">Download CSV</button>
+
+    <script>
+        async function downloadAttendanceReport() {
+            const studentId = document.getElementById('studentId').value;
+
+            if (!studentId) {
+                alert("Please enter a valid Student ID.");
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/attendance/download`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch attendance report.");
+                }
+
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `Attendance_Report_${studentId}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("An error occurred while downloading the report. Please try again.");
+            }
+        }
+    </script>
+
+</body>
+</html>
